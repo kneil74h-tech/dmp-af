@@ -87,7 +87,7 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
             start_task = node.domain_dag.start_endpoint
             if len(node.af_component.upstream_task_ids) == 0:
                 start_task >> node.af_component
-        elif node.domain_dag is DomainDag:
+        elif type(node.domain_dag) is DomainDag:
             if node.domain_dag.timedelta_sensor is not None:
                 node.domain_dag.timedelta_sensor >> node.af_component
 
