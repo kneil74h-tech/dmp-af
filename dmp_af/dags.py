@@ -5,7 +5,7 @@ from typing import Optional
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
-from airflow.sensors.time_delta import TimedeltaSensor
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
 from dmp_af.builder import DomainDag
 from dmp_af.builder.dmp_af_builder import BackfillDomainDag, DmpAfGraph, get_domain_dag_start_date
@@ -48,23 +48,26 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         timedelta_sensor = None
         if domain_dag.schedule == EScheduleTag.daily():
             if graph.config.daily_timedelta_hours > dt.timedelta(0):
-                timedelta_sensor = TimedeltaSensor(
-                    task_id='wait_timedelta',
+                timedelta_sensor = TimeDeltaSensor(
+                    task_id='wait_timedelta_daily',
                     delta=graph.config.daily_timedelta_hours,
+                    deferrable=True,
                     dag=dag,
                 )
         elif domain_dag.schedule == EScheduleTag.weekly():
             if graph.config.weekly_timedelta_days > dt.timedelta(0):
-                timedelta_sensor = TimedeltaSensor(
-                    task_id='wait_timedelta',
+                timedelta_sensor = TimeDeltaSensor(
+                    task_id='wait_timedelta_weekly',
                     delta=graph.config.weekly_timedelta_days,
+                    deferrable=True,
                     dag=dag,
                 )
         elif domain_dag.schedule == EScheduleTag.hourly():
             if graph.config.hourly_timedelta_minutes > dt.timedelta(0):
-                timedelta_sensor = TimedeltaSensor(
-                    task_id='wait_timedelta',
+                timedelta_sensor = TimeDeltaSensor(
+                    task_id='wait_timedelta_hourly',
                     delta=graph.config.hourly_timedelta_minutes,
+                    deferrable=True,
                     dag=dag,
                 )
 
