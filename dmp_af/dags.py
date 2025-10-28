@@ -46,24 +46,25 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         af_dags[domain_dag.dag_name] = dag
 
         timedelta_sensor = None
-        if domain_dag.schedule == EScheduleTag.daily():
-            if graph.config.daily_timedelta_hours > dt.timedelta(0):
+        if type(domain_dag) is DomainDag:
+            if domain_dag.schedule == EScheduleTag.daily() \
+            and graph.config.daily_timedelta_hours > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
                     task_id='wait_timedelta_daily',
                     delta=graph.config.daily_timedelta_hours,
                     deferrable=True,
                     dag=dag,
                 )
-        elif domain_dag.schedule == EScheduleTag.weekly():
-            if graph.config.weekly_timedelta_days > dt.timedelta(0):
+            elif domain_dag.schedule == EScheduleTag.weekly() \
+            and graph.config.weekly_timedelta_days > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
                     task_id='wait_timedelta_weekly',
                     delta=graph.config.weekly_timedelta_days,
                     deferrable=True,
                     dag=dag,
                 )
-        elif domain_dag.schedule == EScheduleTag.hourly():
-            if graph.config.hourly_timedelta_minutes > dt.timedelta(0):
+            elif domain_dag.schedule == EScheduleTag.hourly() and type(domain_dag) \
+            and graph.config.hourly_timedelta_minutes > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
                     task_id='wait_timedelta_hourly',
                     delta=graph.config.hourly_timedelta_minutes,
@@ -90,9 +91,6 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
             start_task = node.domain_dag.start_endpoint
             if len(node.af_component.upstream_task_ids) == 0:
                 start_task >> node.af_component
-        # elif type(node.domain_dag) is DomainDag:
-        #     if node.domain_dag.timedelta_sensor is not None:
-        #         node.domain_dag.timedelta_sensor >> node.af_component
 
     return af_dags
 
