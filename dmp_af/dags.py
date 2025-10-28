@@ -5,7 +5,9 @@ from typing import Optional
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
+from airflow.sensors.time_delta import TimedeltaSensor
 
+from dmp_af.builder import DomainDag
 from dmp_af.builder.dmp_af_builder import BackfillDomainDag, DmpAfGraph, get_domain_dag_start_date
 from dmp_af.common.af_callbacks import collect_af_custom_callbacks
 from dmp_af.common.constants import (
@@ -16,6 +18,7 @@ from dmp_af.common.constants import (
     OTHER_DBT_CLI_OPTIONS,
     OTHER_DBT_CLI_OPTIONS_DEFAULT,
 )
+from dmp_af.common.scheduling import EScheduleTag
 from dmp_af.conf import Config
 from dmp_af.operators.run import DbtRun
 
@@ -42,6 +45,32 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         domain_dag.af_dag = dag
         af_dags[domain_dag.dag_name] = dag
 
+        timedelta_sensor = None
+        if domain_dag.schedule == EScheduleTag.daily():
+            if graph.config.daily_timedelta_hours > dt.timedelta(0):
+                timedelta_sensor = TimedeltaSensor(
+                    task_id='wait_timedelta',
+                    delta=graph.config.daily_timedelta_hours,
+                    dag=dag,
+                )
+        elif domain_dag.schedule == EScheduleTag.weekly():
+            if graph.config.weekly_timedelta_days > dt.timedelta(0):
+                timedelta_sensor = TimedeltaSensor(
+                    task_id='wait_timedelta',
+                    delta=graph.config.weekly_timedelta_days,
+                    dag=dag,
+                )
+        elif domain_dag.schedule == EScheduleTag.hourly():
+            if graph.config.hourly_timedelta_minutes > dt.timedelta(0):
+                timedelta_sensor = TimedeltaSensor(
+                    task_id='wait_timedelta',
+                    delta=graph.config.hourly_timedelta_minutes,
+                    dag=dag,
+                )
+
+        if timedelta_sensor is not None:
+            domain_dag.timedelta_sensor = timedelta_sensor
+
         if isinstance(domain_dag, BackfillDomainDag):
             domain_dag.wrap_dag_with_endpoints()
 
@@ -58,6 +87,9 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
             start_task = node.domain_dag.start_endpoint
             if len(node.af_component.upstream_task_ids) == 0:
                 start_task >> node.af_component
+        elif node.domain_dag is DomainDag:
+            if node.domain_dag.timedelta_sensor is not None:
+                node.domain_dag.timedelta_sensor >> node.af_component
 
     return af_dags
 

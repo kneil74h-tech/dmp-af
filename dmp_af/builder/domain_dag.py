@@ -39,6 +39,7 @@ class DomainDag:
         )
 
         self.af_dag = None
+        self.timedelta_sensor = None
 
     @property
     def _base_tags(self) -> Optional[list[str]]:

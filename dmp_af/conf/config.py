@@ -304,10 +304,14 @@ class Config:
         Defaults to `False`, meaning dbt commands will execute as configured.
     :param use_dbt_target_specific_pools: whether to use dbt target specific pools; if True, then airflow pools will be
         created for each dbt target with pattern `dbt_{target_name}`; if False, then only the default pool will be used
+    :param historical_pool: name of the airflow pool to be used for historical runs; if not specified, then default pool
     :param af_callbacks: config with callback functions for airflow DAGs and tasks
     :param mcd: config for mcd integration; must be installed as extra dependency
     :params tableau: config for Tableau integration
     :param k8s: settings for k8s operators
+    :param daily_timedelta_hours: timedelta in hours for daily dags
+    :param weekly_timedelta_days: timedelta in days for weekly dags
+    :param hourly_timedelta_minutes: timedelta in minutes for hourly dags
 
     :param is_dev: (deprecated) use `dry_run` instead
     """
@@ -341,6 +345,11 @@ class Config:
 
     # k8s
     k8s: K8sConfig = attrs.field(factory=K8sConfig)
+
+    # timedelta settings for different schedules
+    daily_timedelta_hours: datetime.timedelta = attrs.field(default=datetime.timedelta(hours=0))
+    weekly_timedelta_days: datetime.timedelta = attrs.field(default=datetime.timedelta(days=0))
+    hourly_timedelta_minutes: datetime.timedelta = attrs.field(default=datetime.timedelta(minutes=0))
 
     # DEPRECATED fields
     is_dev: bool = attrs.field(default=False)
