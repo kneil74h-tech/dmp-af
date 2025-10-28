@@ -1,5 +1,4 @@
 import datetime
-from datetime import timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -310,6 +309,7 @@ class Config:
     :param mcd: config for mcd integration; must be installed as extra dependency
     :params tableau: config for Tableau integration
     :param k8s: settings for k8s operators
+
     :param timedelta_config: dict with timedelta settings for different schedules; keys are schedule names, values are
         timedelta objects; if some schedule is not specified here, then default timedelta settings will be used
     :param is_dev: (deprecated) use `dry_run` instead
