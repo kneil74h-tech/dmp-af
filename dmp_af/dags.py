@@ -47,27 +47,11 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
 
         timedelta_sensor = None
         if type(domain_dag) is DomainDag:
-            if domain_dag.schedule == EScheduleTag.daily() \
-            and graph.config.daily_timedelta_hours > dt.timedelta(0):
+            schedule_tag = domain_dag.schedule.base_name[1:]
+            if graph.config.timedelta_config[schedule_tag] > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
-                    task_id='wait_timedelta_daily',
-                    delta=graph.config.daily_timedelta_hours,
-                    deferrable=True,
-                    dag=dag,
-                )
-            elif domain_dag.schedule == EScheduleTag.weekly() \
-            and graph.config.weekly_timedelta_days > dt.timedelta(0):
-                timedelta_sensor = TimeDeltaSensor(
-                    task_id='wait_timedelta_weekly',
-                    delta=graph.config.weekly_timedelta_days,
-                    deferrable=True,
-                    dag=dag,
-                )
-            elif domain_dag.schedule == EScheduleTag.hourly() and type(domain_dag) \
-            and graph.config.hourly_timedelta_minutes > dt.timedelta(0):
-                timedelta_sensor = TimeDeltaSensor(
-                    task_id='wait_timedelta_hourly',
-                    delta=graph.config.hourly_timedelta_minutes,
+                    task_id=f'wait_timedelta_{schedule_tag}',
+                    delta=graph.config.timedelta_config[schedule_tag],
                     deferrable=True,
                     dag=dag,
                 )

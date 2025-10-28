@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -309,10 +310,8 @@ class Config:
     :param mcd: config for mcd integration; must be installed as extra dependency
     :params tableau: config for Tableau integration
     :param k8s: settings for k8s operators
-    :param daily_timedelta_hours: timedelta in hours for daily dags
-    :param weekly_timedelta_days: timedelta in days for weekly dags
-    :param hourly_timedelta_minutes: timedelta in minutes for hourly dags
-
+    :param timedelta_config: dict with timedelta settings for different schedules; keys are schedule names, values are
+        timedelta objects; if some schedule is not specified here, then default timedelta settings will be used
     :param is_dev: (deprecated) use `dry_run` instead
     """
 
@@ -347,9 +346,15 @@ class Config:
     k8s: K8sConfig = attrs.field(factory=K8sConfig)
 
     # timedelta settings for different schedules
-    daily_timedelta_hours: datetime.timedelta = attrs.field(default=datetime.timedelta(hours=0))
-    weekly_timedelta_days: datetime.timedelta = attrs.field(default=datetime.timedelta(days=0))
-    hourly_timedelta_minutes: datetime.timedelta = attrs.field(default=datetime.timedelta(minutes=0))
+    timedelta_config: dict[str, datetime.timedelta] = attrs.field(
+        factory=lambda: {
+            "daily": datetime.timedelta(hours=0),
+            "hourly": datetime.timedelta(minutes=0),
+            "weekly": datetime.timedelta(days=0),
+        },
+        hash=True,
+        eq=str,
+    )
 
     # DEPRECATED fields
     is_dev: bool = attrs.field(default=False)
