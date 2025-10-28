@@ -4,7 +4,7 @@ from typing import Optional
 
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator
-from airflow.sensors.time_delta import TimeDeltaSensor
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
 from dmp_af.builder.task_dependencies import RegistryDomainDependencies
 from dmp_af.common import constants

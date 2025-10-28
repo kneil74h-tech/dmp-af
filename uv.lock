@@ -396,6 +396,18 @@ wheels = [
 ]
 
 [[package]]
+name = "apache-airflow-providers-standard"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fb/ca/482c82161c23624f0e8bb2b3b9c104981fc48c70d371caafa264594ad4cd/apache_airflow_providers_standard-1.9.0.tar.gz", hash = "sha256:46c4a0399f54e88f84e67a1881886a30ef6aa4b5abb52df2f3e5e83d2e8908b7", size = 180443, upload-time = "2025-09-29T12:08:02.313Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/21/08/3e182b9e183b970d897951319955551bff30650dc47be8278496ad5eef7d/apache_airflow_providers_standard-1.9.0-py3-none-any.whl", hash = "sha256:2abb8c9a148b853d7a732e8a688846418ff9d9b31686efe059f2644ca2560ca3", size = 144899, upload-time = "2025-09-29T12:08:01.064Z" },
+]
+
+[[package]]
 name = "apispec"
 version = "6.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1090,6 +1102,7 @@ source = { editable = "." }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
+    { name = "apache-airflow-providers-standard" },
     { name = "attrs" },
     { name = "cachetools" },
     { name = "croniter" },
@@ -1164,6 +1177,7 @@ requires-dist = [
     { name = "airflow-mcd", marker = "extra == 'mcd'", specifier = ">=0.3.3,<0.4.0" },
     { name = "apache-airflow", specifier = ">=2.6,<3" },
     { name = "apache-airflow-providers-cncf-kubernetes", specifier = ">=7.0.0" },
+    { name = "apache-airflow-providers-standard", specifier = "==1.9.0" },
     { name = "attrs", specifier = ">=23.1" },
     { name = "cachetools", specifier = ">=5.3,<7" },
     { name = "croniter", specifier = ">=3.0" },

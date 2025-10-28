@@ -5,7 +5,7 @@ from typing import Optional
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
-from airflow.sensors.time_delta import TimeDeltaSensor
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
 from dmp_af.builder import DomainDag
 from dmp_af.builder.dmp_af_builder import BackfillDomainDag, DmpAfGraph, get_domain_dag_start_date
