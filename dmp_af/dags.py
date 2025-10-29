@@ -5,7 +5,9 @@ from typing import Optional
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
+from dmp_af.builder import DomainDag
 from dmp_af.builder.dmp_af_builder import BackfillDomainDag, DmpAfGraph, get_domain_dag_start_date
 from dmp_af.common.af_callbacks import collect_af_custom_callbacks
 from dmp_af.common.constants import (
@@ -42,6 +44,20 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         domain_dag.af_dag = dag
         af_dags[domain_dag.dag_name] = dag
 
+        timedelta_sensor = None
+        if type(domain_dag) is DomainDag:
+            schedule_tag = domain_dag.schedule.base_name[1:]
+            if graph.config.timedelta_config.get(schedule_tag, dt.timedelta(0)) > dt.timedelta(0):
+                timedelta_sensor = TimeDeltaSensor(
+                    task_id=f'wait_timedelta_{schedule_tag}',
+                    delta=graph.config.timedelta_config[schedule_tag],
+                    deferrable=True,
+                    dag=dag,
+                )
+
+        if timedelta_sensor is not None:
+            domain_dag.timedelta_sensor = timedelta_sensor
+
         if isinstance(domain_dag, BackfillDomainDag):
             domain_dag.wrap_dag_with_endpoints()
 
@@ -58,6 +74,10 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
             start_task = node.domain_dag.start_endpoint
             if len(node.af_component.upstream_task_ids) == 0:
                 start_task >> node.af_component
+        elif type(node.domain_dag) is DomainDag:
+            if node.domain_dag.timedelta_sensor is not None:
+                if len(node.af_component.upstream_task_ids) == 0:
+                    node.domain_dag.timedelta_sensor >> node.af_component
 
     return af_dags
 
