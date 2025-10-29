@@ -348,7 +348,7 @@ class Config:
     # timedelta settings for different schedules
     timedelta_config: dict[str, datetime.timedelta] = attrs.field(
         factory=lambda: {
-            "daily": datetime.timedelta(hours=0),
+            "daily": datetime.timedelta(minutes=0),
             "hourly": datetime.timedelta(minutes=0),
             "weekly": datetime.timedelta(days=0),
         },
