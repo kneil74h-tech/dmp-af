@@ -356,7 +356,20 @@ class Config:
         eq=str,
     )
 
-    external_etl_services: list[dict[str, dict]] = attrs.field(default=None)
+    external_etl_services: list[dict[str, dict]] = attrs.field(
+        factory=lambda: {
+            "sdwh-etl": {
+                "host": "localhost",
+                "api_connection_id": "sdwh_etl_api",
+            },
+            "sample-etl": {
+                "host": "localhost",
+                "api_connection_id": "sample_etl_api",
+            },
+        },
+        hash=True,
+        eq=str,
+    )
 
     # DEPRECATED fields
     is_dev: bool = attrs.field(default=False)
