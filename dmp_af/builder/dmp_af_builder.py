@@ -106,8 +106,8 @@ class DmpAfGraph:
             node.set_target_details(project_profile, config.dbt_default_targets)
             if node.resource_type in ('test', 'model', 'snapshot', 'seed'):
                 # TODO: add sensors for models in different etl services
-                if etl_service_name and not node.is_at_etl_service(etl_service_name):
-                    continue
+                # if etl_service_name and not node.is_at_etl_service(etl_service_name):
+                #     continue
                 nodes.append(node)
 
         sources = [DbtSource(**source_info) for source_info in manifest['sources'].values()]
