@@ -356,7 +356,7 @@ class Config:
         eq=str,
     )
 
-    external_etl_services: list[dict[str, dict]] = attrs.field(
+    external_etl_services: dict[str, dict] = attrs.field(
         factory=dict,
         hash=True,
         eq=str,

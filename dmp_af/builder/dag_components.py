@@ -341,16 +341,17 @@ class DagModel(DagComponent):
                     dag=self.domain_dag.af_dag,
                 )
             else:
+                upstream_service_config = self.domain_dag.config.external_etl_services[upstream_service]
                 wait = ExternalAirflowTaskSensor(
                     task_id=f'wait__{dep.safe_name}{_suffix}',
                     task_group=task_group,
                     external_tasks=[
                         ExternalTaskConfig(
-                            external_airflow_host='',
+                            external_airflow_host=upstream_service_config['host'],
                             external_dag_id=dep.domain_dag.af_dag.dag_id,
                             external_task_id=dep.af_sensor_endpoint.task_id,
                             timedelta_min=0,
-                            api_connection_id=''
+                            api_connection_id=upstream_service_config['api_connection_id'],
                         )
                     ],
                     dag=self.domain_dag.af_dag,
