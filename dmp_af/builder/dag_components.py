@@ -8,6 +8,7 @@ from dmp_af.builder.domain_dag import DomainDag
 from dmp_af.builder.task_dependencies import DagDelayedDependencyRegistry
 from dmp_af.common.scheduling import EScheduleTag
 from dmp_af.operators.branch import DbtBranchOperator, create_decision_path_function
+from dmp_af.operators.external_airflow_task_sensor import ExternalAirflowTaskSensor, ExternalTaskConfig
 from dmp_af.operators.kubernetes_pod import DbtKubernetesPodOperator
 from dmp_af.operators.run import DbtRun, DbtSeed, DbtSnapshot, DbtTest
 from dmp_af.operators.sensors import AfExecutionDateFn, DbtExternalSensor, DbtSourceFreshnessSensor
@@ -308,6 +309,55 @@ class DagModel(DagComponent):
             delayed_deps(test_task) >> delayed_deps(endpoint_task)
 
         return endpoint_task
+
+    def _ext_dep_waits_generator(
+        self,
+        dep: 'DagModel',
+        task_group: TaskGroup,
+    ) -> Generator[DbtExternalSensor, None, None]:
+        execution_date_fns = AfExecutionDateFn(
+            upstream_schedule_tag=dep.domain_dag.schedule,
+            downstream_schedule_tag=self.domain_dag.schedule,
+            wait_policy=self.node_config.dependencies[dep.name].wait_policy,
+        ).get_execution_dates()
+
+        upstream_service = dep.dbt_node.etl_service_name
+        downstream_service = self.dbt_node.etl_service_name
+
+        for i, execution_date_fn in enumerate(execution_date_fns):
+            # airflow task_id for statsd must be less than 250 chars.
+            # it's not necessary to have a long name for the only one external dependency wait
+            _suffix = f'__{i}' if len(execution_date_fns) > 1 else ''
+
+            if upstream_service == downstream_service:
+                wait = DbtExternalSensor(
+                    dmp_af_config=self.domain_dag.config,
+                    task_id=f'wait__{dep.safe_name}{_suffix}',
+                    task_group=task_group,
+                    external_dag_id=dep.domain_dag.af_dag.dag_id,
+                    external_task_id=dep.af_sensor_endpoint.task_id,
+                    execution_date_fn=execution_date_fn,
+                    dep_schedule=dep.domain_dag.schedule,
+                    dag=self.domain_dag.af_dag,
+                )
+            else:
+                wait = ExternalAirflowTaskSensor(
+                    task_id=f'wait__{dep.safe_name}{_suffix}',
+                    task_group=task_group,
+                    external_tasks=[
+                        ExternalTaskConfig(
+                            external_airflow_host='',
+                            external_dag_id=dep.domain_dag.af_dag.dag_id,
+                            external_task_id=dep.af_sensor_endpoint.task_id,
+                            timedelta_min=0,
+                            api_connection_id=''
+                        )
+                    ],
+                    dag=self.domain_dag.af_dag,
+                )
+
+            yield wait
+
 
     def _init_source_dependencies_af(self, delayed_deps: DagDelayedDependencyRegistry):
         for source_dep in self._depends_on_sources:
