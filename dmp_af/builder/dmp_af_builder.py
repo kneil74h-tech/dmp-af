@@ -66,15 +66,8 @@ class DomainDagsRegistry:
 
 
 class DmpAfGraph:
-    def __init__(
-            self,
-            nodes: list[DbtNode],
-            sources: list[DbtSource],
-            config: Config,
-            etl_service_name: Optional[str] = None,
-    ):
+    def __init__(self, nodes: list[DbtNode], sources: list[DbtSource], config: Config):
         self.config = config
-        self.etl_service_name: Optional[str] = etl_service_name
 
         self.dbt_nodes: list[DbtNode] = nodes
         self.dbt_sources: list[DbtSource] = sources
@@ -119,7 +112,7 @@ class DmpAfGraph:
 
         sources = [DbtSource(**source_info) for source_info in manifest['sources'].values()]
 
-        graph = cls(nodes, sources, config, etl_service_name)
+        graph = cls(nodes, sources, config)
         graph._build_dags()
         return graph
 
@@ -149,8 +142,6 @@ class DmpAfGraph:
     def _collect_all_models(self, nodes, backfill: bool = False) -> None:
         domain_dags_registry = self._domain_bf_dags_registry if backfill else self._domain_dags_registry
         for node in nodes:
-            if self.etl_service_name and not node.is_at_etl_service(self.etl_service_name):
-                continue
             domain_dag = domain_dags_registry.get(node)
             try:
                 self._dag_components_registry[node.unique_id] = DagComponentFactory.create(
