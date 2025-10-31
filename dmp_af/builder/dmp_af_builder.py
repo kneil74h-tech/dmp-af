@@ -95,6 +95,7 @@ class DmpAfGraph:
         )
 
         self.nodes: list[DagComponent] = []
+        self._external_models: dict[str, DagModel] = {}
 
     @classmethod
     def from_manifest(
@@ -130,6 +131,7 @@ class DmpAfGraph:
         self._large_tests = {}
         self._dag_components_registry = {}
         self._medium_tests = {}
+        self._external_models = {}
 
     def _build_dags(self):
         dag_components = self._build_dag_components(self.dbt_nodes)
@@ -150,6 +152,7 @@ class DmpAfGraph:
         domain_dags_registry = self._domain_bf_dags_registry if backfill else self._domain_dags_registry
         for node in nodes:
             if self.etl_service_name and not node.is_at_etl_service(self.etl_service_name):
+                self._external_models[node.unique_id] = node
                 continue
             domain_dag = domain_dags_registry.get(node)
             try:
@@ -194,7 +197,10 @@ class DmpAfGraph:
         for node in nodes:
             if node.is_model() or node.is_snapshot():
                 for upstream in node.depends_on:
-                    self._models[node.unique_id].add_dependency(self._models[upstream])
+                    if upstream in self._external_models:
+                        self._models[node.unique_id].add_dependency(self._external_models[upstream])
+                    else:
+                        self._models[node.unique_id].add_dependency(self._models[upstream])
                 for upstream in node.depends_on_sources:
                     self._models[node.unique_id].add_source_dependency(sources[upstream])
 
