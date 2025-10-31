@@ -2,6 +2,7 @@ import datetime as dt
 import json
 from typing import Optional
 
+import attrs
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
@@ -206,7 +207,13 @@ def compile_dmp_af_dags(manifest_path: str, config: Config, etl_service_name: Op
         profiles = yaml.safe_load(fin)
 
     with open(config.dbt_project.dbt_project_path / 'dbt_project.yml') as fin:
-        dbt_project_profile_name = yaml.safe_load(fin)['profile']
+        dbt_project_config = yaml.safe_load(fin)
+
+    dbt_project_profile_name = dbt_project_config['profile']
+    config = attrs.evolve(
+        config,
+        external_etl_services=dbt_project_config.get('external_etl_services', {})
+    )
 
     return _compile_dbt_dags(
         manifest, profiles, dbt_project_profile_name, etl_service_name=etl_service_name, config=config
