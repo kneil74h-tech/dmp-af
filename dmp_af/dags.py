@@ -29,9 +29,7 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
     domains = {
         node.domain_dag: node
         for node in graph.nodes
-        if not graph.etl_service_name
-        or not node.etl_service_name
-        or node.etl_service_name == graph.etl_service_name
+        if not graph.etl_service_name or node.etl_service_name == graph.etl_service_name
     }
 
     for domain_dag in domains:
