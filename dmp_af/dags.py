@@ -26,16 +26,13 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
     af_dags = {}
 
     dag_callbacks, task_callbacks = collect_af_custom_callbacks(graph.config)
-
-    relevant_nodes = [
-        node
+    domains = {
+        node.domain_dag
         for node in graph.nodes
         if not graph.etl_service_name
         or not node.etl_service_name
         or node.etl_service_name == graph.etl_service_name
-    ]
-
-    domains = {node.domain_dag for node in relevant_nodes}
+    }
 
     for domain_dag in domains:
         dag = DAG(
@@ -70,15 +67,15 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         if isinstance(domain_dag, BackfillDomainDag):
             domain_dag.wrap_dag_with_endpoints()
 
-    for node in relevant_nodes:
+    for node in graph.nodes:
         node.domain_dag.af_dag = af_dags[node.domain_dag.dag_name]
 
-    for node in relevant_nodes:
+    for node in graph.nodes:
         node.add_af_callbacks(task_callbacks)
         if node.af_component is None:
             node.init_af()
 
-    for node in relevant_nodes:
+    for node in graph.nodes:
         if isinstance(node.domain_dag, BackfillDomainDag):
             start_task = node.domain_dag.start_endpoint
             if len(node.af_component.upstream_task_ids) == 0:
