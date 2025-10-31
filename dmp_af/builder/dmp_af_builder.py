@@ -195,6 +195,10 @@ class DmpAfGraph:
 
         # set dependencies for models and snapshots
         for node in nodes:
+
+            if self.etl_service_name and not node.is_at_etl_service(self.etl_service_name):
+                continue
+
             if node.is_model() or node.is_snapshot():
                 for upstream in node.depends_on:
                     if upstream in self._external_models:
