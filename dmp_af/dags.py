@@ -26,7 +26,11 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
     af_dags = {}
 
     dag_callbacks, task_callbacks = collect_af_custom_callbacks(graph.config)
-    domains = {node.domain_dag for node in graph.nodes}
+    domains = {
+        node.domain_dag: node
+        for node in graph.nodes
+        if not graph.etl_service_name or node.etl_service_name == graph.etl_service_name
+    }
 
     for domain_dag in domains:
         dag = DAG(
