@@ -163,11 +163,15 @@ class DmpAfGraph:
                 continue
 
         self._models = {
-            node.unique_id: self._dag_components_registry[node.unique_id] for node in nodes if not node.is_test()
+            node.unique_id: self._dag_components_registry[node.unique_id]
+            for node in nodes
+            if not node.is_test() and node.unique_id in self._dag_components_registry
         }
         if not backfill:
             self._large_tests = {
-                node.unique_id: self._dag_components_registry[node.unique_id] for node in nodes if node.is_large_test()
+                node.unique_id: self._dag_components_registry[node.unique_id]
+                for node in nodes
+                if node.is_large_test() and node.unique_id in self._dag_components_registry
             }
 
     def _collect_maintenance_components(self) -> None:
