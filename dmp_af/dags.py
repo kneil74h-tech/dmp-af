@@ -56,11 +56,10 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         timedelta_sensor = None
         if type(domain_dag) is DomainDag:
             schedule_tag = domain_dag.schedule.base_name[1:]
-            delta = graph.config.timedelta_config.get(schedule_tag)
-            if delta and delta > dt.timedelta(0):
+            if graph.config.timedelta_config.get(schedule_tag, dt.timedelta(0)) > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
                     task_id=f'wait_timedelta_{schedule_tag}',
-                    delta=delta,
+                    delta=graph.config.timedelta_config[schedule_tag],
                     deferrable=True,
                     dag=dag,
                 )
