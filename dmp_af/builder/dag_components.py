@@ -40,6 +40,8 @@ class DagComponent:
         self.task_group: Optional[TaskGroup] = None
         self.af_sensor_endpoint: Optional[EmptyOperator | DbtRun | DbtKubernetesPodOperator] = None
         self._af_callbacks: dict[str, list[Optional[callable]]] = {}
+        self.etl_service_name: Optional[str] = None
+
 
     @property
     def depends_on(self) -> list['DagComponent']:
@@ -230,6 +232,8 @@ class DagModel(DagComponent):
         self.dbt_node = dbt_node
         self.target_environment = self.dbt_node.target_environment(domain_dag.config.dbt_default_targets)
         self.max_active_tis_per_dag = self.dbt_node.get_airflow_parallelism()
+        self.etl_service_name = self.dbt_node.etl_service_name
+
 
     def _create_dbt_runner_task(self) -> DbtRun:
         return self.runner_class(

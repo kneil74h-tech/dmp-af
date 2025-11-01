@@ -81,6 +81,15 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
                 if len(node.af_component.upstream_task_ids) == 0:
                     node.domain_dag.timedelta_sensor >> node.af_component
 
+    non_relevant_dags = {
+        node.domain_dag.dag_name
+        for node in graph.nodes
+        if node.etl_service_name != graph.etl_service_name
+    }
+
+    for dag_name in non_relevant_dags & af_dags.keys():
+        del af_dags[dag_name]
+
     return af_dags
 
 
