@@ -66,9 +66,15 @@ class DomainDagsRegistry:
 
 
 class DmpAfGraph:
-    def __init__(self, nodes: list[DbtNode], sources: list[DbtSource], config: Config):
+    def __init__(
+            self,
+            nodes: list[DbtNode],
+            sources: list[DbtSource],
+            config: Config,
+            etl_service_name: Optional[str] = None,
+    ):
         self.config = config
-
+        self.etl_service_name = etl_service_name
         self.dbt_nodes: list[DbtNode] = nodes
         self.dbt_sources: list[DbtSource] = sources
 
@@ -112,7 +118,7 @@ class DmpAfGraph:
 
         sources = [DbtSource(**source_info) for source_info in manifest['sources'].values()]
 
-        graph = cls(nodes, sources, config)
+        graph = cls(nodes, sources, config, etl_service_name)
         graph._build_dags()
         return graph
 
