@@ -78,7 +78,7 @@ class ExternalAirflowTaskSensor(BaseSensorOperator):
 
         return processed_hosts
 
-    def poke(self, context: Context) -> bool:
+    def poke(self, context: 'Context') -> bool:
         """Check if all external tasks have completed successfully.
 
         Args:

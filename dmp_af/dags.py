@@ -2,6 +2,7 @@ import datetime as dt
 import json
 from typing import Optional
 
+import attrs
 import yaml
 from airflow.models.dag import DAG
 from airflow.models.param import Param
@@ -47,10 +48,11 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
         timedelta_sensor = None
         if type(domain_dag) is DomainDag:
             schedule_tag = domain_dag.schedule.base_name[1:]
-            if graph.config.timedelta_config.get(schedule_tag, dt.timedelta(0)) > dt.timedelta(0):
+            delta = graph.config.timedelta_config.get(schedule_tag)
+            if delta and delta > dt.timedelta(0):
                 timedelta_sensor = TimeDeltaSensor(
                     task_id=f'wait_timedelta_{schedule_tag}',
-                    delta=graph.config.timedelta_config[schedule_tag],
+                    delta=delta,
                     deferrable=True,
                     dag=dag,
                 )
@@ -78,6 +80,15 @@ def dbt_main_dags(graph: DmpAfGraph) -> dict[str, DAG]:
             if node.domain_dag.timedelta_sensor is not None:
                 if len(node.af_component.upstream_task_ids) == 0:
                     node.domain_dag.timedelta_sensor >> node.af_component
+
+    non_relevant_dags = {
+        node.domain_dag.dag_name
+        for node in graph.nodes
+        if node.etl_service_name != graph.etl_service_name
+    }
+
+    for dag_name in non_relevant_dags & af_dags.keys():
+        del af_dags[dag_name]
 
     return af_dags
 
@@ -207,6 +218,12 @@ def compile_dmp_af_dags(manifest_path: str, config: Config, etl_service_name: Op
 
     with open(config.dbt_project.dbt_project_path / 'dbt_project.yml') as fin:
         dbt_project_profile_name = yaml.safe_load(fin)['profile']
+
+    with open(config.dbt_project.dbt_project_path / 'external_services_config.yml') as fin:
+        config = attrs.evolve(
+            config,
+            external_etl_services=yaml.safe_load(fin).get('external_etl_services', {})
+        )
 
     return _compile_dbt_dags(
         manifest, profiles, dbt_project_profile_name, etl_service_name=etl_service_name, config=config

@@ -356,6 +356,12 @@ class Config:
         eq=str,
     )
 
+    external_etl_services: dict[str, dict] = attrs.field(
+        factory=dict,
+        hash=True,
+        eq=str,
+    )
+
     # DEPRECATED fields
     is_dev: bool = attrs.field(default=False)
 

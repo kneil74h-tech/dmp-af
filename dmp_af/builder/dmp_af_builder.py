@@ -66,9 +66,15 @@ class DomainDagsRegistry:
 
 
 class DmpAfGraph:
-    def __init__(self, nodes: list[DbtNode], sources: list[DbtSource], config: Config):
+    def __init__(
+            self,
+            nodes: list[DbtNode],
+            sources: list[DbtSource],
+            config: Config,
+            etl_service_name: Optional[str] = None,
+    ):
         self.config = config
-
+        self.etl_service_name = etl_service_name
         self.dbt_nodes: list[DbtNode] = nodes
         self.dbt_sources: list[DbtSource] = sources
 
@@ -106,13 +112,13 @@ class DmpAfGraph:
             node.set_target_details(project_profile, config.dbt_default_targets)
             if node.resource_type in ('test', 'model', 'snapshot', 'seed'):
                 # TODO: add sensors for models in different etl services
-                if etl_service_name and not node.is_at_etl_service(etl_service_name):
-                    continue
+                # if etl_service_name and not node.is_at_etl_service(etl_service_name):
+                #     continue
                 nodes.append(node)
 
         sources = [DbtSource(**source_info) for source_info in manifest['sources'].values()]
 
-        graph = cls(nodes, sources, config)
+        graph = cls(nodes, sources, config, etl_service_name)
         graph._build_dags()
         return graph
 

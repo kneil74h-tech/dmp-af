@@ -345,6 +345,10 @@ class DbtNode(pydantic.BaseModel):
     def original_file_path_without_extension(self):
         return str(Path(self.original_file_path).with_suffix(''))
 
+    @property
+    def etl_service_name(self) -> str:
+        return self.original_file_path.split('/', 1)[0]
+
     def is_model(self) -> bool:
         return self.resource_type == 'model'
 
