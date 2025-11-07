@@ -1,9 +1,104 @@
 import importlib.util
 import os
 from datetime import datetime
+import subprocess
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from typing import Optional
 
 import click
 import dotenv
+
+
+class CLIException(Exception):
+    """Base CLI exception."""
+    def __init__(self, message: Optional[str] = None) -> None:
+        super().__init__(message)
+
+
+def find_repo_root(start_path: Path = None) -> Path:
+    """Find the root directory of a Git repository.
+
+    This function searches for a `.git` directory by moving upwards from the
+    starting path until either:
+    1. A `.git` directory is found (returns the containing directory)
+    2. The filesystem root is reached (returns the original working directory)
+
+    Args:
+        start_path: Path to start searching from. If None, uses current
+                   working directory.
+
+    Returns:
+        Path: The root directory of the Git repository if found,
+              otherwise the current working directory.
+    """
+    if start_path is None:
+        start_path = Path.cwd()
+
+    current = start_path.resolve()
+
+    while current != current.parent:
+        if (current / '.git').exists():
+            return current
+        current = current.parent
+
+    return Path.cwd()
+
+
+def run_dbt_command(command, args=None):
+    """Run a DBT command with common arguments and real-time output."""
+    cmd = ['dbt', command] + (args or [])
+
+    click.echo(f"🚀  Running: dbt {command}")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True
+        )
+        click.echo(f"✅  Command completed: dbt {command}")
+        return result
+
+    except subprocess.CalledProcessError as e:
+        click.echo(f"❌  Command failed with exit code {e.returncode}: dbt {command}")
+        if e.stderr:
+            click.echo(f"Error: {e.stderr}")
+        raise click.Abort()
+
+
+def render_template_file(jinja_env: Environment, template_path: Path, output_path: Path, context: dict) -> None:
+    """Render a template file using Jinja2 and save to output path.
+
+    Args:
+        jinja_env: The Jinja environment to use.
+        template_path: Path to template file directory
+        output_path: Path where to save rendered result
+        context: Dictionary with variables for template
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if output_path.exists():
+        return
+
+    if not jinja_env:
+        raise CLIException(
+            f"Can't initialize Jinja environment. Specify `DMP_AF_CLI_TEMPLATES_FOLDER` environment variable and "
+            f"create templates folder in your project according to CLI docs."
+        )
+
+    try:
+        template_name = f"{template_path.parent.name}/{template_path.name}"
+        template = jinja_env.get_template(template_name)
+        rendered_content = template.render(**context)
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered_content, encoding='utf-8')
+
+        file_type = output_path.suffix[1:].upper()
+        click.echo(f"📄 Created {file_type} file: {output_path}")
+    except TemplateNotFound:
+        return
 
 
 class CustomCLI(click.Group):
@@ -85,15 +180,222 @@ class CustomCLI(click.Group):
 def cli(ctx):
     """Main CLI entrypoint with standard context."""
     ctx.ensure_object(dict)
-    ctx.obj['start_time'] = datetime.now()
+    ctx.obj["start_time"] = datetime.now()
+    ctx.obj["root_dir"] = find_repo_root()
+    template_folder = os.getenv("DMP_AF_CLI_TEMPLATES_FOLDER")
+    ctx.obj["templates_path"] = template_folder or ""
+    ctx.obj["jinja_env"] = Environment(
+        loader=FileSystemLoader(template_folder),
+        trim_blocks=True,
+        lstrip_blocks=True
+    ) if template_folder else None
 
 
-@cli.command(name="hello")
+@cli.command(name="create-model")
 @click.pass_context
-def hello(ctx):
-    """Common command for CLI."""
-    _ = ctx
-    click.echo("Hello! I'm working.")
+@click.argument('model')
+@click.option('--etl-service', '-e', required=True, help='ETL service (Airflow) name.', type=click.STRING)
+@click.option('--domain', '-d', required=True, help='Model domain name.', type=click.STRING)
+@click.option('--layer', '-l', required=True, help='Model layer name.', type=click.STRING)
+@click.option('--storage', '-s', required=True, help='Model layer name.', type=click.STRING)
+@click.option('--type', '-t', required=True, help='Model type name.', type=click.STRING)
+def create_model(ctx, model: str, etl_service: str, domain: str, layer: str, storage: str, type: str):
+    """Create a new DBT model with standardized structure.
+
+    This command generates the necessary files for a DBT model following
+    the project's naming conventions and directory structure.
+    """
+    base_dir = ctx.obj["root_dir"] / f"{etl_service}/dbt/models/{domain}/{storage}/{layer}/{model}"
+    model_name = f"{domain}.{layer}.{model}"
+
+    template_context = {
+        'model': model,
+        'model_name': model_name,
+        'etl_service': etl_service,
+        'domain': domain,
+        'layer': layer,
+        'storage': storage,
+    }
+
+    rendered_files = [
+        {
+            "template_path": Path(ctx.obj["templates_path"]) / type / f"{type}.sql",
+            "output_path": base_dir / f"{model_name}.sql",
+        },
+        {
+            "template_path": Path(ctx.obj["templates_path"]) / type / f"{type}.py",
+            "output_path": base_dir / f"{model_name}.py",
+        },
+        {
+            "template_path": Path(ctx.obj["templates_path"]) / type / f"{type}.yaml",
+            "output_path": base_dir / f"{model_name}.yaml",
+        },
+    ]
+
+    for rendered_file in rendered_files:
+        render_template_file(
+            jinja_env=ctx.obj["jinja_env"],
+            template_path=rendered_file["template_path"],
+            output_path=rendered_file["output_path"],
+            context=template_context
+        )
+
+
+@cli.command(name="dbt-build")
+@click.option('--compile', '-c', 'compile_flg', is_flag=True, help='Compile DBT project after parsing.')
+@click.option('--docs', '-d', 'docs_flg', is_flag=True, help='Generate documentation.')
+@click.option('--no-deps', '-nd', 'no_deps_flg', is_flag=True, help='Skip dependencies installation.')
+@click.option('--target', '-t', default=lambda: os.environ.get('DBT_TARGET', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--debug', is_flag=True, help='Enable debug output for DBT commands.')
+@click.pass_context
+def dbt_build(ctx, compile_flg, docs_flg, no_deps_flg, target, debug):
+    """Build DBT project."""
+
+    common_args = [
+        '--profiles-dir', ctx.obj["root_dir"],
+        '--project-dir', ctx.obj["root_dir"],
+        '--target', target
+    ]
+
+    if debug:
+        common_args.insert(0, '--debug')
+
+    commands = [
+        ('clean', "🧹  Cleaning project...", common_args),
+        ('deps', "📦  Installing dependencies...", common_args) if not no_deps_flg else None,
+        ('parse', "🔍  Parsing project...", common_args),
+        ('compile', "🛠️  Compiling project...", common_args) if compile_flg else None,
+        ('docs', "📚  Generating documentation...",
+         ["generate", "--no-compile", "--empty-catalog"] + common_args) if docs_flg else None,
+    ]
+
+    commands = [cmd for cmd in commands if cmd is not None]
+
+    for command, message, extra_args in commands:
+        click.echo(message)
+        run_dbt_command(command, extra_args)
+
+    click.echo("\n🎉  DBT build completed successfully!")
+
+    actions_taken = []
+    if not no_deps_flg:
+        actions_taken.append("installed dependencies")
+    if compile_flg:
+        actions_taken.append("project compiled")
+    if docs_flg:
+        actions_taken.append("docs generated")
+
+    if actions_taken:
+        click.echo(f"🎯  Additional actions: {', '.join(actions_taken)}")
+
+
+@cli.command(name="dbt-run")
+@click.argument('model')
+@click.option('--target', '-t', default=lambda: os.environ.get('DBT_TARGET', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--start_dttm', '-t', default=lambda: os.environ.get('START_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--end_dttm', '-t', default=lambda: os.environ.get('END_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.pass_context
+def dbt_run(ctx, model, start_dttm, end_dttm, target):
+    """Run DBT model."""
+
+    common_args = [
+        '--profiles-dir', ctx.obj["root_dir"],
+        '--project-dir', ctx.obj["root_dir"],
+        '--target', target
+    ]
+
+    click.echo("🚀  Running model...")
+
+    run_dbt_command(
+        command="run",
+        args=["--select", model] + common_args +
+             ["--vars", f'{{"start_dttm": "{start_dttm}", "end_dttm": "{end_dttm}", "overlap": False}}']
+    )
+
+
+@cli.command(name="dbt-test")
+@click.argument('model')
+@click.option('--target', '-t', default=lambda: os.environ.get('DBT_TARGET', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--start_dttm', '-t', default=lambda: os.environ.get('START_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--end_dttm', '-t', default=lambda: os.environ.get('END_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.pass_context
+def dbt_run(ctx, model, start_dttm, end_dttm, target):
+    """Run DBT model."""
+
+    common_args = [
+        '--profiles-dir', ctx.obj["root_dir"],
+        '--project-dir', ctx.obj["root_dir"],
+        '--target', target
+    ]
+
+    click.echo("🚀  Running model tests...")
+
+    run_dbt_command(
+        command="test",
+        args=["--select", model] + common_args +
+             ["--vars", f'{{"start_dttm": "{start_dttm}", "end_dttm": "{end_dttm}", "overlap": False}}']
+    )
+
+
+@cli.command(name="dbt-seed")
+@click.argument('model')
+@click.option('--target', '-t', default=lambda: os.environ.get('DBT_TARGET', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--start_dttm', '-t', default=lambda: os.environ.get('START_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--end_dttm', '-t', default=lambda: os.environ.get('END_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.pass_context
+def dbt_run(ctx, model, start_dttm, end_dttm, target):
+    """Run DBT model."""
+
+    common_args = [
+        '--profiles-dir', ctx.obj["root_dir"],
+        '--project-dir', ctx.obj["root_dir"],
+        '--target', target
+    ]
+
+    click.echo("🚀  Running model seeds...")
+
+    run_dbt_command(
+        command="seed",
+        args=["--select", model] + common_args +
+             ["--vars", f'{{"start_dttm": "{start_dttm}", "end_dttm": "{end_dttm}", "overlap": False}}']
+    )
+
+
+@cli.command(name="dbt-snapshot")
+@click.argument('model')
+@click.option('--target', '-t', default=lambda: os.environ.get('DBT_TARGET', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--start_dttm', '-t', default=lambda: os.environ.get('START_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.option('--end_dttm', '-t', default=lambda: os.environ.get('END_DTTM', 'dev'), type=click.STRING,
+              help='DBT target environment.')
+@click.pass_context
+def dbt_run(ctx, model, start_dttm, end_dttm, target):
+    """Run DBT model."""
+
+    common_args = [
+        '--profiles-dir', ctx.obj["root_dir"],
+        '--project-dir', ctx.obj["root_dir"],
+        '--target', target
+    ]
+
+    click.echo("🚀  Running model snapshots...")
+
+    run_dbt_command(
+        command="snapshot",
+        args=["--select", model] + common_args +
+             ["--vars", f'{{"start_dttm": "{start_dttm}", "end_dttm": "{end_dttm}", "overlap": False}}']
+    )
 
 
 if __name__ == '__main__':
