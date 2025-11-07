@@ -48,16 +48,14 @@ def load_and_call_hook(
         if not file_path.exists():
             raise FileNotFoundError(f"Hook file not found: {file_path}")
 
-        unique_mod_name = f"dmp_af_user_hook_{abs(hash(str(file_path))) % (10 ** 9)}"
-
-        spec = importlib.util.spec_from_file_location(unique_mod_name, str(file_path))
+        spec = importlib.util.spec_from_file_location(str(file_path), str(file_path))
         if spec is None or spec.loader is None:
             raise ImportError(f"Cannot create import spec for {file_path}")
 
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        sys.modules[unique_mod_name] = module
+        sys.modules[str(file_path)] = module
 
         return _call_main(module, context)
 
