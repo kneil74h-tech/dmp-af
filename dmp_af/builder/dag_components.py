@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import cached_property
 from typing import Generator, Optional
 
 from airflow.operators.empty import EmptyOperator
@@ -234,6 +235,19 @@ class DagModel(DagComponent):
         self.max_active_tis_per_dag = self.dbt_node.get_airflow_parallelism()
         self.etl_service_name = self.dbt_node.etl_service_name
 
+    @cached_property
+    def _prepare_python_hooks(self):
+        from dmp_af.common.hooks import load_and_get_main_callable
+        node_meta = getattr(self.dbt_node, 'meta', None) or {}
+        pre_hook_source = node_meta.get('pre_python_hook')
+        post_hook_source = node_meta.get('post_python_hook')
+
+        return {
+            'pre_python_hook': load_and_get_main_callable(pre_hook_source),
+            'post_python_hook': load_and_get_main_callable(post_hook_source),
+        }
+
+
 
     def _create_dbt_runner_task(self) -> DbtRun:
         return self.runner_class(
@@ -249,6 +263,8 @@ class DagModel(DagComponent):
             target_environment=self.target_environment,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
+            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
+            post_execute=self._prepare_python_hooks.get('post_python_hook'),
             **self._af_callbacks,
         )
 
