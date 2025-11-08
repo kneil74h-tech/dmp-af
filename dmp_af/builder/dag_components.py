@@ -282,6 +282,8 @@ class DagModel(DagComponent):
             target_details=self.dbt_node.target_details,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
+            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
+            post_execute=self._prepare_python_hooks.get('post_python_hook'),
         )
 
     def _create_venv_runner_task(self) -> DbtPythonVenvOperator:
@@ -293,6 +295,8 @@ class DagModel(DagComponent):
             target_details=self.dbt_node.target_details,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
+            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
+            post_execute=self._prepare_python_hooks.get('post_python_hook'),
         )
 
     def _create_runner_task(self) -> DbtRun | DbtKubernetesPodOperator | DbtPythonVenvOperator:
