@@ -34,21 +34,21 @@ def load_and_get_main_callable(
         if not file_path.exists():
             raise FileNotFoundError(f"Hook file not found: {file_path}")
 
-        module_name = str(file_path)  # используем путь как имя модуля в sys.modules
+        module_key = str(file_path)
 
-        spec = importlib.util.spec_from_file_location(module_name, str(file_path))
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot create import spec for {file_path}")
-
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # выполняем код модуля (но не вызываем main)
-
-        # регистрируем модуль под ключом-путём (чтобы избежать конфликтов имён)
-        sys.modules[module_name] = module
+        if module_key in sys.modules:
+            module = sys.modules[module_key]
+        else:
+            spec = importlib.util.spec_from_file_location(module_key, str(file_path))
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot create import spec for {file_path}")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            sys.modules[module_key] = module
 
         main_fn = getattr(module, "main", None)
         if not callable(main_fn):
-            raise AttributeError(f"Hook module {file_path!s} does not expose callable 'main(context=...)'")
+            raise AttributeError(f"Hook module {file_path!s} does not expose callable 'main'")
 
         return main_fn
 
