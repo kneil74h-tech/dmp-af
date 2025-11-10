@@ -15,12 +15,12 @@ def load_and_get_main_callable(
     ignore_errors: bool = False,
 ) -> Optional[Callable[[Dict[str, Any]], Any]]:
     """
-    Загрузить модуль по path и вернуть callable main (не вызывать его).
+    Load a Python module from the given path and return its callable `main` function.
 
-    :param path: относительный путь внутри DMP_AF_PYTHON_HOOKS_FOLDER или абсолютный путь до .py файла
-    :param hooks_folder_env: имя env-var с папкой hooks (по умолчанию "hooks")
-    :param ignore_errors: если True — ошибки логируются и возвращается None, иначе ошибка пробрасывается
-    :return: callable main(context=...) или None
+    :param path: Relative path inside the hooks folder or absolute path to a .py file.
+    :param hooks_folder_env: Environment variable name pointing to the hooks folder (default: "DMP_AF_PYTHON_HOOKS_FOLDER").
+    :param ignore_errors: If True, log errors and return None instead of raising.
+    :return: Callable `main(context: dict)` from the loaded module, or None if loading fails.
     """
     if not path:
         return None
