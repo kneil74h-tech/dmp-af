@@ -1,6 +1,4 @@
-# tests/test_hooks_loader.py
 import sys
-import os
 from pathlib import Path
 import pytest
 
@@ -8,7 +6,6 @@ from dmp_af.common.hooks import load_and_get_main_callable
 
 
 def _cleanup_module(file_path: Path):
-    # модуль регистрируется в sys.modules под str(file_path)
     sys.modules.pop(str(file_path), None)
 
 
@@ -20,7 +17,6 @@ def test_loads_callable_and_executes(tmp_path, monkeypatch):
     hook_file = hooks_dir / "pre_hook.py"
     hook_file.write_text(
         "def main(context):\n"
-        "    # простая функция, возвращающая value из context\n"
         "    return context.get('x')\n"
     )
 
@@ -34,10 +30,9 @@ def test_loads_callable_and_executes(tmp_path, monkeypatch):
 
 def test_module_is_not_reexecuted_on_second_load(tmp_path, monkeypatch):
     """
-    Проверяем, что повторный вызов load_and_get_main_callable для того же файла
-    не выполняет код модуля заново (модуль переиспользуется из sys.modules).
-    Мы учитываем это так: на момент первого импорта COUNTER == 1,
-    при втором импорте COUNTER не увеличится и останется 1.
+    Verify that calling load_and_get_main_callable twice for the same file
+    does not re-execute the module code (it is reused from sys.modules).
+    On the first import, COUNTER == 1; on the second import, it remains 1.
     """
     hooks_dir = tmp_path / "hooks"
     hooks_dir.mkdir()
@@ -62,7 +57,6 @@ def test_module_is_not_reexecuted_on_second_load(tmp_path, monkeypatch):
         second = load_and_get_main_callable("counter_hook.py")
         assert second is not None
 
-        # функции должны быть тот же объект (модуль не перезагружался)
         assert first is second
         assert second({}) == 1
     finally:
@@ -74,11 +68,9 @@ def test_missing_file_raises_or_ignored(tmp_path, monkeypatch):
     hooks_dir.mkdir()
     monkeypatch.setenv("DMP_AF_PYTHON_HOOKS_FOLDER", str(hooks_dir))
 
-    # отсутствующий файл -> исключение
     with pytest.raises(FileNotFoundError):
         load_and_get_main_callable("no_such_hook.py")
 
-    # ignore_errors=True -> возвращает None
     assert load_and_get_main_callable("no_such_hook.py", ignore_errors=True) is None
 
 
