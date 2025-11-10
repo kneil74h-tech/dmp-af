@@ -236,7 +236,7 @@ class DagModel(DagComponent):
         self.etl_service_name = self.dbt_node.etl_service_name
 
     @cached_property
-    def _prepare_python_hooks(self):
+    def _pre_post_python_hooks(self):
         from dmp_af.common.hooks import load_and_get_main_callable
         node_meta = getattr(self.dbt_node, 'meta', None) or {}
         pre_hook_source = node_meta.get('pre_python_hook')
@@ -263,8 +263,8 @@ class DagModel(DagComponent):
             target_environment=self.target_environment,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
-            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
-            post_execute=self._prepare_python_hooks.get('post_python_hook'),
+            pre_execute=self._pre_post_python_hooks.get('pre_python_hook'),
+            post_execute=self._pre_post_python_hooks.get('post_python_hook'),
             **self._af_callbacks,
         )
 
@@ -282,8 +282,8 @@ class DagModel(DagComponent):
             target_details=self.dbt_node.target_details,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
-            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
-            post_execute=self._prepare_python_hooks.get('post_python_hook'),
+            pre_execute=self._pre_post_python_hooks.get('pre_python_hook'),
+            post_execute=self._pre_post_python_hooks.get('post_python_hook'),
         )
 
     def _create_venv_runner_task(self) -> DbtPythonVenvOperator:
@@ -295,8 +295,8 @@ class DagModel(DagComponent):
             target_details=self.dbt_node.target_details,
             dmp_af_config=self.domain_dag.config,
             env=self.dbt_node.config.env,
-            pre_execute=self._prepare_python_hooks.get('pre_python_hook'),
-            post_execute=self._prepare_python_hooks.get('post_python_hook'),
+            pre_execute=self._pre_post_python_hooks.get('pre_python_hook'),
+            post_execute=self._pre_post_python_hooks.get('post_python_hook'),
         )
 
     def _create_runner_task(self) -> DbtRun | DbtKubernetesPodOperator | DbtPythonVenvOperator:
