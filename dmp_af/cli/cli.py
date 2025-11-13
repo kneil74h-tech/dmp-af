@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from typing import Optional
+import re
 
 import click
 import dotenv
@@ -396,6 +397,92 @@ def dbt_run(ctx, model, start_dttm, end_dttm, target):
         args=["--select", model] + common_args +
              ["--vars", f'{{"start_dttm": "{start_dttm}", "end_dttm": "{end_dttm}", "overlap": False}}']
     )
+
+
+@cli.command(name="create-etl-service")
+@click.argument('service_name')
+@click.option('--with-dags/--no-dags', default=True, help='Создавать папку dags (по умолчанию: да).')
+@click.pass_context
+def create_etl_service(ctx, service_name: str, with_dags: bool):
+    """Create a new ETL service (Airflow) inside the repository and update dbt_project.yml.
+
+    Creates the folder structure: <service_name>/, <service_name>/dbt/models, <service_name>/dbt/seeds
+    and optionally <service_name>/dags. Also adds corresponding paths to the root dbt_project.yml
+    under the following sections: model-paths, snapshot-paths, seed-paths, test-paths, analysis-paths
+    and macro-paths. Existing entries are not duplicated.
+    """
+    root_dir: Path = ctx.obj.get("root_dir", Path.cwd())
+
+    service_dir = root_dir / service_name
+    dbt_models = service_dir / 'dbt' / 'models'
+    dbt_seeds = service_dir / 'dbt' / 'seeds'
+    dags_dir = service_dir / 'dags'
+
+    try:
+        service_dir.mkdir(parents=True, exist_ok=True)
+        (service_dir / '__init__.py').write_text("# package for {}\n".format(service_name), encoding='utf-8')
+        dbt_models.mkdir(parents=True, exist_ok=True)
+        dbt_seeds.mkdir(parents=True, exist_ok=True)
+        if with_dags:
+            dags_dir.mkdir(parents=True, exist_ok=True)
+        click.echo(f"📁 Created ETL service folders for: {service_name}")
+    except Exception as e:
+        click.echo(f"❌ Failed to create folders for {service_name}: {e}")
+        raise click.Abort()
+
+    dbt_file = root_dir / 'dbt_project.yml'
+    if not dbt_file.exists():
+        click.echo(f"⚠️ dbt_project.yml not found at {dbt_file}. Skipping update.")
+        return
+
+    try:
+        text = dbt_file.read_text(encoding='utf-8')
+    except Exception as e:
+        click.echo(f"❌ Can't read dbt_project.yml: {e}")
+        raise click.Abort()
+
+    def add_path_to_array(yaml_text: str, key: str, new_path: str):
+        pattern = rf'({re.escape(key)}\s*:\s*\[)(.*?)(\])'
+        m = re.search(pattern, yaml_text, flags=re.DOTALL)
+        if m:
+            inside = m.group(2)
+            if new_path in inside:
+                return yaml_text, False
+            insertion = f"  \"{new_path}\",\n"
+            new_inside = inside + insertion
+            new_text = yaml_text[:m.start(1)] + m.group(1) + new_inside + m.group(3) + yaml_text[m.end(3):]
+            return new_text, True
+        else:
+            append_block = f"\n{key}: [\n  \"{new_path}\",\n]\n"
+            return yaml_text + append_block, True
+
+    updates = []
+    mapping = {
+        'model-paths': f"{service_name}/dbt/models",
+        'snapshot-paths': f"{service_name}/dbt/models",
+        'seed-paths': f"{service_name}/dbt/seeds",
+        'test-paths': f"{service_name}/dbt/tests",
+        'analysis-paths': f"{service_name}/dbt/analysis",
+        'macro-paths': f"{service_name}/dbt/macros",
+    }
+
+    new_text = text
+    for key, path_value in mapping.items():
+        new_text, changed = add_path_to_array(new_text, key, path_value)
+        if changed:
+            updates.append((key, path_value))
+
+    if updates:
+        try:
+            dbt_file.write_text(new_text, encoding='utf-8')
+            click.echo(f"✅ Updated dbt_project.yml: added {len(updates)} path(s)")
+            for k, p in updates:
+                click.echo(f"  - {k}: {p}")
+        except Exception as e:
+            click.echo(f"❌ Can't write dbt_project.yml: {e}")
+            raise click.Abort()
+    else:
+        click.echo("ℹ️ dbt_project.yml already contains paths for this service. No changes made.")
 
 
 if __name__ == '__main__':
