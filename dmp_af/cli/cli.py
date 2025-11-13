@@ -404,7 +404,7 @@ def dbt_run(ctx, model, start_dttm, end_dttm, target):
 @click.option('--with-dags/--no-dags', default=True, help='Создавать папку dags (по умолчанию: да).')
 @click.pass_context
 def create_etl_service(ctx, service_name: str, with_dags: bool):
-    """Create a new ETL service (Airflow) inside the repository and update dbt_project.yml.
+    """Create a new ETL service (Airflow).
 
     Creates the folder structure: <service_name>/, <service_name>/dbt/models, <service_name>/dbt/seeds
     and optionally <service_name>/dags. Also adds corresponding paths to the root dbt_project.yml
