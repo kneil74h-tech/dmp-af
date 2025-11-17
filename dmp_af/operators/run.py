@@ -1,16 +1,16 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from airflow import Dataset
 from airflow.lineage import prepare_lineage, apply_lineage
 from airflow.utils.operator_helpers import ExecutionCallableRunner
-
 from dmp_af.common.constants import DBT_MODEL_DAG_PARAM
 from dmp_af.common.utils import build_dbt_run_model_bash_extra_options
-from dmp_af.conf import Config
 from dmp_af.operators.base import DbtBaseActionOperator
 from airflow.utils.context import context_get_outlet_events
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+    from dmp_af.conf import Config
 
 TaskPreExecuteHook = Callable[[Context, Config], None]
 TaskPostExecuteHook = Callable[[Context, Config, Any], None]
