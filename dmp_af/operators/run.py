@@ -62,36 +62,34 @@ class DbtRun(DbtBaseDatasetOperator):
         super().__init__(
             dmp_af_config=dmp_af_config,
             retry_policy=dmp_af_config.retries_config.dbt_run_retry_policy,
-            pre_execute=pre_execute,
-            post_execute=post_execute,
             **kwargs,
         )
 
-    # @prepare_lineage
-    # def pre_execute(self, context: Any):
-    #     """Execute right before self.execute() is called."""
-    #     if self._pre_execute_hook is None:
-    #         return
-    #     ExecutionCallableRunner(
-    #         self._pre_execute_hook,
-    #         context_get_outlet_events(context),
-    #         logger=self.log,
-    #     ).run(context, self.dmp_af_config)
-    #
-    # @apply_lineage
-    # def post_execute(self, context: Any, result: Any = None):
-    #     """
-    #     Execute right after self.execute() is called.
-    #
-    #     It is passed the execution context and any results returned by the operator.
-    #     """
-    #     if self._post_execute_hook is None:
-    #         return
-    #     ExecutionCallableRunner(
-    #         self._post_execute_hook,
-    #         context_get_outlet_events(context),
-    #         logger=self.log,
-    #     ).run(context, self.dmp_af_config, result)
+    @prepare_lineage
+    def pre_execute(self, context: Any):
+        """Execute right before self.execute() is called."""
+        if self._pre_execute_hook is None:
+            return
+        ExecutionCallableRunner(
+            self._pre_execute_hook,
+            context_get_outlet_events(context),
+            logger=self.log,
+        ).run(context, self.dmp_af_config)
+
+    @apply_lineage
+    def post_execute(self, context: Any, result: Any = None):
+        """
+        Execute right after self.execute() is called.
+
+        It is passed the execution context and any results returned by the operator.
+        """
+        if self._post_execute_hook is None:
+            return
+        ExecutionCallableRunner(
+            self._post_execute_hook,
+            context_get_outlet_events(context),
+            logger=self.log,
+        ).run(context, self.dmp_af_config, result)
 
 
 class DbtSeed(DbtBaseDatasetOperator):
