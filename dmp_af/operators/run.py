@@ -57,13 +57,13 @@ class DbtRun(DbtBaseDatasetOperator):
         post_execute: TaskPostExecuteHook | None = None,
         **kwargs
     ) -> None:
-        self._pre_execute_hook = pre_execute
-        self._post_execute_hook = post_execute
         super().__init__(
             dmp_af_config=dmp_af_config,
             retry_policy=dmp_af_config.retries_config.dbt_run_retry_policy,
             **kwargs,
         )
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
     @prepare_lineage
     def pre_execute(self, context: Any):
