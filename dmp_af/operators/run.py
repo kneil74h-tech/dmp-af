@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from airflow import Dataset
@@ -12,8 +11,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
     from dmp_af.conf import Config
 
-TaskPreExecuteHook = Callable[[Context, Config], None]
-TaskPostExecuteHook = Callable[[Context, Config, Any], None]
+TaskPreExecuteHook = Callable[['Context', 'Config'], None]
+TaskPostExecuteHook = Callable[['Context', 'Config', Any], None]
 
 class DbtBaseDatasetOperator(DbtBaseActionOperator):
     def __init__(self, model_name: Optional[str], is_dataset_enable=False, model_type: str = 'sql', **kwargs) -> None:
