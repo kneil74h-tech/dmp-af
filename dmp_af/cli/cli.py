@@ -416,7 +416,7 @@ def create_etl_service(ctx, service_name: str, with_dags: bool):
     service_dir = root_dir / service_name
     dbt_models = service_dir / 'dbt' / 'models'
     dbt_seeds = service_dir / 'dbt' / 'seeds'
-    dags_dir = service_dir / 'dags'
+    dags_dir = service_dir /  'dags' / 'system'
 
     try:
         service_dir.mkdir(parents=True, exist_ok=True)
@@ -429,6 +429,25 @@ def create_etl_service(ctx, service_name: str, with_dags: bool):
     except Exception as e:
         click.echo(f"❌ Failed to create folders for {service_name}: {e}")
         raise click.Abort()
+
+    if with_dags:
+        try:
+            src = root_dir / 'template-etl' / 'dags' / 'dbt_dag.py'
+            dest = dags_dir / 'dbt_dag.py'
+            if dest.exists():
+                click.echo(f"ℹ️ DAG file already exists, skipping: {dest}")
+            elif not src.exists():
+                click.echo(f"⚠️ Template DAG not found at {src}. Skipping DAG copy.")
+            else:
+                content = src.read_text(encoding='utf-8')
+                template_context = {"etl_service": service_name}
+                jinja_local = Environment()
+                rendered = jinja_local.from_string(content).render(**template_context)
+                dest.write_text(rendered, encoding='utf-8')
+                click.echo(f"📄 Created DAG file: {dest}")
+        except Exception as e:
+            click.echo(f"❌ Failed to modify DAG for {service_name}: {e}")
+            raise click.Abort()
 
     dbt_file = root_dir / 'dbt_project.yml'
     if not dbt_file.exists():
