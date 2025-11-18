@@ -399,11 +399,14 @@ def dbt_run(ctx, model, start_dttm, end_dttm, target):
     )
 
 
-@cli.command(name="create-etl-service")
+@cli.command(name="create-etl")
 @click.argument('service_name')
-@click.option('--with-dags/--no-dags', default=True, help='Создавать папку dags (по умолчанию: да).')
+@click.option('--with-dags/--no-dags', default=True, help='Create dags folder (default: yes).')
+@click.option('--src', '-s', default=lambda: os.environ.get('DMP_AF_CLI_TEMPLATES_FOLDER', ''),
+              help='Path to templates folder or to a specific dbt_dag.py file. By default: DMP_AF_CLI_TEMPLATES_FOLDER.',
+              type=click.Path())
 @click.pass_context
-def create_etl_service(ctx, service_name: str, with_dags: bool):
+def create_etl(ctx, service_name: str, with_dags: bool, src: str):
     """Create a new ETL service (Airflow).
 
     Creates the folder structure: <service_name>/, <service_name>/dbt/models, <service_name>/dbt/seeds
@@ -432,14 +435,22 @@ def create_etl_service(ctx, service_name: str, with_dags: bool):
 
     if with_dags:
         try:
-            src = root_dir / 'template-etl' / 'dags' / 'dbt_dag.py'
+            if src:
+                src_path = Path(src)
+                if src_path.is_dir():
+                    src_file = src_path / 'etl' / 'dags' / 'dbt_dag.py'
+                else:
+                    src_file = src_path
+            else:
+                src_file = root_dir / 'etl' / 'dags' / 'dbt_dag.py'
+
             dest = dags_dir / 'dbt_dag.py'
             if dest.exists():
                 click.echo(f"ℹ️ DAG file already exists, skipping: {dest}")
-            elif not src.exists():
-                click.echo(f"⚠️ Template DAG not found at {src}. Skipping DAG copy.")
+            elif not src_file.exists():
+                click.echo(f"⚠️ Template DAG not found at {src_file}. Skipping DAG copy.")
             else:
-                content = src.read_text(encoding='utf-8')
+                content = src_file.read_text(encoding='utf-8')
                 template_context = {"etl_service": service_name}
                 jinja_local = Environment()
                 rendered = jinja_local.from_string(content).render(**template_context)
